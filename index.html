@@ -139,11 +139,15 @@
   </div>
 
   <div class="card">
-    <h2>第二步 · 月份與備註 <span class="tag">選填</span></h2>
+    <h2>第二步 · 結算區間與備註 <span class="tag">選填</span></h2>
     <div class="field">
-      <label>結算月份</label>
-      <input type="month" id="month">
-      <div class="hint">幫助 AI 正確判讀跨月日期，例如 6 月底接到 7 月初</div>
+      <label>只計算這個日期區間（留空則全部計算）</label>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="startDate" style="flex:1;min-width:140px">
+        <span style="color:var(--ink-soft)">到</span>
+        <input type="date" id="endDate" style="flex:1;min-width:140px">
+      </div>
+      <div class="hint">例如截圖含到 7 月，但只想算 6 月，就選 6/1 到 6/30，區間外的自動排除</div>
     </div>
     <div class="field">
       <label>特別專案備註</label>
@@ -270,31 +274,39 @@ async function run(mode) {
 
 // ---------- 呼叫 Claude API 只做「讀圖」，輸出結構化資料 ----------
 async function readCalendar() {
-  const month = document.getElementById('month').value;
   const note = document.getElementById('note').value.trim();
 
   const prompt = `你是行事曆判讀助手。請讀取這張 TimeTree 行事曆截圖，把每一筆行程抽取成結構化 JSON。
 
-${month ? '結算月份參考：' + month + '。' : ''}
-
 每筆行程要判斷：
-- date：日期，格式 "M/D"（例如 "6/3"）
+- month：月份數字（例如 6 月就是 6，7 月就是 7）。判斷方式見下方「最重要的日期判讀規則」。
+- day：日期中的「日」數字。判斷方式見下方規則。
+- weekday：星期幾，用中文單字（日、一、二、三、四、五、六）。依該日在月曆中的欄位判斷（最左欄是日，最右欄是六）。
 - start：開始時間 "HH:MM"（24小時制）。場勘若只有一個時間點，start 就是那個時間。
 - hours：租借時數。從項目名稱的「NH」抽取數字（例如 "4H" 就是 4）。場勘沒有時數，hours 設為 null。
-- name：客戶或項目名稱（去掉時數標記與保全標記，保留主要識別文字）
+- name：客戶或項目名稱（去掉時數標記與保全標記，保留主要識別文字，包含括號補充如「東西放過夜」「需要退垃圾代收1000元」要保留）
 - type：分類，三選一：
   - "survey"：場勘（紅色點點，或名稱含「場勘」）
   - "owner"：房東使用（綠色點點，或名稱含「綠豆」或「Doris」）
-  - "rent"：一般客戶租借（藍色點點）
+  - "rent"：一般客戶租借（藍色或紫色點點）
+
+★★★ 最重要的日期判讀規則（這張月曆每個格子有「兩個」數字，務必看對）★★★
+- 每個日期格子的左上角通常有兩行數字：一個「大字」和一個「小字」。
+- 【大字】才是真正的日期（國曆日），請「只用大字」當作 day。
+- 【小字】是農曆或其他曆法（例如 5.14、6.1、6.13 這種帶小數點的），請「完全忽略」，絕對不要拿小字當日期。
+- 月份判斷：看畫面最上方標題（例如「2026年7月」就是 7 月為主）。
+- 跨月處理：月曆視圖開頭幾格的大字可能是「上個月月底」（例如標題是7月，但開頭出現28、29、30，那是6月的28、29、30，month 要寫 6）。當大字數字忽然從大（如28、29、30、31）跳回小（如1、2、3）時，代表換月了，1 之後就是標題的那個月。
+- 範例：標題「2026年7月」，某格大字是「1」小字是「5.17」→ month=7, day=1（忽略5.17）；某格大字是「28」小字是「5.14」出現在月初→ month=6, day=28。
 
 判讀重點：
-- 顏色點點是分類關鍵。紅點=survey、綠點=owner、藍點=rent。
+- 顏色點點是分類關鍵。紅點=survey、綠點=owner、藍點或紫點=rent。
 - 名稱含「綠豆」或「Doris」一律歸 owner，不論點點顏色。
 - 名稱含「場勘」一律歸 survey。
-- 保全標記（保全開/關/開關）不用抽取，系統會自己依時間判定，但保全標記不影響你判讀 hours。
+- 保全標記（保全開/關/開關）不用抽取，系統會自己依時間判定。
+- 請務必讀出截圖中「每一筆」行程，每個格子裡若有多筆都要列出，不可遺漏。
 
 只回傳 JSON 陣列，不要任何說明文字、不要 markdown 標記。格式範例：
-[{"date":"6/3","start":"12:30","hours":4,"name":"唐米","type":"rent"},{"date":"6/3","start":"17:00","hours":null,"name":"粉紅湯圓","type":"survey"}]`;
+[{"month":6,"day":28,"weekday":"日","start":"08:30","hours":4,"name":"綠豆","type":"owner"},{"month":7,"day":1,"weekday":"三","start":"18:00","hours":4,"name":"Yuning","type":"rent"}]`;
 
   // 呼叫自己的後端（金鑰安全地存在 Cloudflare 後台，不在這個網頁裡）
   const resp = await fetch("/api/read", {
@@ -314,20 +326,44 @@ ${month ? '結算月份參考：' + month + '。' : ''}
 
 // ---------- 用驗證過的邏輯計算 ----------
 function compute(records) {
+  // 讀取日期區間（可留空）
+  const startVal = document.getElementById('startDate').value; // "2026-06-01" 或 ""
+  const endVal = document.getElementById('endDate').value;
+  function inRange(month, day) {
+    if (!startVal && !endVal) return true; // 沒設區間就全算
+    // 用 月*100+日 當可比較的數字（年份不影響，因為截圖通常同一季）
+    const key = month * 100 + day;
+    if (startVal) {
+      const [, sm, sd] = startVal.split('-').map(Number);
+      if (key < sm * 100 + sd) return false;
+    }
+    if (endVal) {
+      const [, em, ed] = endVal.split('-').map(Number);
+      if (key > em * 100 + ed) return false;
+    }
+    return true;
+  }
+
   const days = {};
   for (const r of records) {
-    if (!days[r.date]) days[r.date] = [];
-    let endMin = null, endStr = null, secure = '', amount = 0, billable = false;
+    // 相容舊格式（date "6/3"）與新格式（month/day）
+    let month = r.month, day = r.day;
+    if ((month == null || day == null) && r.date) {
+      const parts = String(r.date).split('/').map(Number);
+      month = parts[0]; day = parts[1];
+    }
+    if (month == null || day == null) continue;
+    if (!inRange(month, day)) continue; // 區間外，跳過
 
+    const dateKey = month + '/' + day;
+    if (!days[dateKey]) days[dateKey] = { weekday: r.weekday || '', items: [] };
+
+    let endStr = null, secure = '', amount = 0, billable = false;
     if (r.type === 'survey') {
-      // 場勘預設半小時
-      if (r.start) { endStr = addHours(r.start, 0.5); }
-      billable = false;
+      if (r.start) endStr = addHours(r.start, 0.5);
     } else if (r.type === 'owner') {
       if (r.start && r.hours) endStr = addHours(r.start, r.hours);
-      billable = false;
     } else {
-      // rent
       if (r.start && r.hours) {
         endStr = addHours(r.start, r.hours);
         amount = fee(r.hours);
@@ -335,19 +371,18 @@ function compute(records) {
         secure = secureTag(toMin(r.start), toMin(endStr));
       }
     }
-    days[r.date].push({
+    days[dateKey].items.push({
       start: r.start, end: endStr, name: r.name, hours: r.hours,
       type: r.type, secure, amount, billable
     });
   }
-  // 排序日期
   const ordered = Object.keys(days).sort((a, b) => {
     const [am, ad] = a.split('/').map(Number);
     const [bm, bd] = b.split('/').map(Number);
     return am - bm || ad - bd;
   });
   let total = 0;
-  for (const d of ordered) for (const it of days[d]) total += it.amount;
+  for (const d of ordered) for (const it of days[d].items) total += it.amount;
   return { days, ordered, total };
 }
 
@@ -361,35 +396,47 @@ function render(mode, c) {
     // 只結算營收：列出計費項目 + 總計
     let html = '';
     for (const d of c.ordered) {
-      const billItems = c.days[d].filter(i => i.billable);
+      const wd = c.days[d].weekday ? '（' + c.days[d].weekday + '）' : '';
+      const billItems = c.days[d].items.filter(i => i.billable);
       if (!billItems.length) continue;
-      html += '<div class="day"><div class="day-date">' + d + '</div>';
+      html += '<div class="day"><div class="day-date">' + d + wd + '</div>';
       for (const it of billItems) {
-        html += '<div class="row"><span class="l">' + it.name +
-          ' <span style="color:var(--ink-soft);font-size:13px">' + it.hours + 'H</span></span>' +
+        const sec = it.secure ? '(' + it.secure + ') ' : '';
+        const hrs = it.hours ? it.hours + 'H-' : '';
+        html += '<div class="row"><span class="l">' + sec + hrs + it.name + '</span>' +
           '<span class="r">' + nt(it.amount) + '</span></div>';
       }
       html += '</div>';
     }
-    html += '<div class="total-bar"><span class="lbl">本月營收合計</span><span class="amt">' + nt(c.total) + ' <small>元</small></span></div>';
+    html += '<div class="total-bar"><span class="lbl">營收合計</span><span class="amt">' + nt(c.total) + ' <small>元</small></span></div>';
     body.innerHTML = html;
   } else {
-    // 明細表：所有項目，含不計費
+    // 明細表：所有項目，含不計費，格式照原本習慣
     let html = '';
     for (const d of c.ordered) {
-      html += '<div class="day"><div class="day-date">' + d + '</div>';
-      for (const it of c.days[d]) {
-        const timeStr = it.start ? (it.start + (it.end ? '–' + it.end : '')) : '';
-        const sec = it.secure ? '<span class="secure">' + it.secure + '</span>' : '';
+      const wd = c.days[d].weekday ? '（' + c.days[d].weekday + '）' : '';
+      html += '<div class="day"><div class="day-date">' + d + wd + '</div>';
+      for (const it of c.days[d].items) {
+        const timeStr = it.start ? (it.end ? it.start + ' - ' + it.end : it.start) : '';
+        const sec = it.secure ? '(' + it.secure + ') ' : '';
+        let label;
+        if (it.type === 'survey') {
+          label = '場勘-' + it.name;
+        } else if (it.type === 'owner') {
+          label = it.name;
+        } else {
+          const hrs = it.hours ? it.hours + 'H-' : '';
+          label = sec + hrs + it.name;
+        }
         const right = it.billable
           ? '<span class="r">' + nt(it.amount) + '</span>'
           : '<span class="r free">不計費</span>';
         html += '<div class="row"><span class="l"><span class="time">' + timeStr + '</span>' +
-          it.name + sec + '</span>' + right + '</div>';
+          label + '</span>' + right + '</div>';
       }
       html += '</div>';
     }
-    html += '<div class="total-bar"><span class="lbl">本月營收合計</span><span class="amt">' + nt(c.total) + ' <small>元</small></span></div>';
+    html += '<div class="total-bar"><span class="lbl">營收合計</span><span class="amt">' + nt(c.total) + ' <small>元</small></span></div>';
     body.innerHTML = html;
   }
 }
