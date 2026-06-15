@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>綠豆空間 · 行事曆小幫手</title>
+<style>
+  :root {
+    --bg: #F3F1E7;
+    --card: #FBFAF4;
+    --ink: #2B3A2E;
+    --ink-soft: #5C6B5E;
+    --bean: #6B8E5A;
+    --bean-deep: #4F7042;
+    --bean-light: #E3EAD6;
+    --line: #DAD8C8;
+    --warn: #B4603A;
+    --red-dot: #D45B5B;
+    --green-dot: #5A9E5A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    padding: 32px 16px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 32px; }
+  .logo {
+    width: 52px; height: 52px; margin: 0 auto 12px;
+    background: var(--bean-light); border-radius: 50% 50% 50% 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; transform: rotate(-8deg);
+  }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+  .sub { color: var(--ink-soft); font-size: 14px; margin-top: 4px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 22px; margin-bottom: 18px;
+  }
+  .card h2 { font-size: 15px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+  .card h2 .tag { font-size: 12px; font-weight: 600; color: var(--bean-deep); background: var(--bean-light); padding: 2px 9px; border-radius: 20px; }
+
+  .drop {
+    border: 2px dashed var(--line); border-radius: 12px;
+    padding: 34px 16px; text-align: center; cursor: pointer;
+    transition: all .18s; background: #fff;
+  }
+  .drop:hover, .drop.over { border-color: var(--bean); background: var(--bean-light); }
+  .drop .ico { font-size: 30px; opacity: .55; }
+  .drop .t { font-weight: 700; margin-top: 8px; font-size: 15px; }
+  .drop .h { color: var(--ink-soft); font-size: 12px; margin-top: 3px; }
+  #preview { max-width: 100%; max-height: 260px; border-radius: 10px; margin-top: 14px; display: none; border: 1px solid var(--line); }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--ink-soft); }
+  input[type=text], input[type=month], textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px;
+    padding: 9px 11px; font-size: 14px; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--bean); }
+  textarea { resize: vertical; min-height: 60px; }
+  .hint { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+  button {
+    flex: 1; border: none; border-radius: 10px; padding: 13px;
+    font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
+    transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-detail { background: var(--bean-light); color: var(--bean-deep); }
+  .btn-detail:hover { background: #d5e0c4; }
+  .btn-revenue { background: var(--bean); color: #fff; }
+  .btn-revenue:hover { background: var(--bean-deep); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  #status { text-align: center; padding: 16px; color: var(--ink-soft); font-size: 14px; display: none; }
+  .spinner {
+    width: 20px; height: 20px; border: 2.5px solid var(--bean-light);
+    border-top-color: var(--bean); border-radius: 50%;
+    animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #result { display: none; }
+  .result-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .result-head h2 { margin: 0; }
+  .copy-btn { flex: none; padding: 7px 14px; font-size: 13px; background: #fff; border: 1px solid var(--line); color: var(--ink-soft); border-radius: 8px; }
+  .copy-btn:hover { border-color: var(--bean); color: var(--bean-deep); }
+
+  .day { border-top: 1px solid var(--line); padding: 12px 0; }
+  .day:first-child { border-top: none; }
+  .day-date { font-weight: 700; font-size: 14px; margin-bottom: 7px; color: var(--bean-deep); }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 14px; align-items: baseline; }
+  .row .l { color: var(--ink); }
+  .row .l .time { color: var(--ink-soft); font-variant-numeric: tabular-nums; margin-right: 8px; font-size: 13px; }
+  .row .l .secure { font-size: 11px; color: var(--warn); font-weight: 600; margin-left: 6px; }
+  .row .r { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .row .r.free { color: var(--ink-soft); font-weight: 500; font-size: 13px; }
+
+  .total-bar {
+    margin-top: 16px; background: var(--bean-light); border-radius: 12px;
+    padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .total-bar .lbl { font-weight: 700; font-size: 15px; color: var(--bean-deep); }
+  .total-bar .amt { font-weight: 800; font-size: 26px; color: var(--bean-deep); font-variant-numeric: tabular-nums; }
+  .total-bar .amt small { font-size: 14px; font-weight: 600; }
+
+  .err { background: #fbeee9; border: 1px solid #e6c5b6; color: var(--warn); padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-top: 12px; }
+
+  .rules { font-size: 12px; color: var(--ink-soft); margin-top: 22px; text-align: center; line-height: 1.7; }
+  .rules summary { cursor: pointer; font-weight: 600; }
+  .rules .body { margin-top: 8px; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🫛</div>
+    <h1>綠豆空間 · 行事曆小幫手</h1>
+    <div class="sub">上傳 TimeTree 截圖，自動整理租借明細與營收結算</div>
+  </header>
+
+  <div class="card">
+    <h2>第一步 · 上傳行事曆</h2>
+    <div class="drop" id="drop">
+      <div class="ico">⬆</div>
+      <div class="t">點擊上傳，或將截圖拖曳到這裡</div>
+      <div class="h">支援 PNG、JPG、WebP（單張上限 5MB）</div>
+    </div>
+    <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
+    <img id="preview" alt="預覽">
+  </div>
+
+  <div class="card">
+    <h2>第二步 · 月份與備註 <span class="tag">選填</span></h2>
+    <div class="field">
+      <label>結算月份</label>
+      <input type="month" id="month">
+      <div class="hint">幫助 AI 正確判讀跨月日期，例如 6 月底接到 7 月初</div>
+    </div>
+    <div class="field">
+      <label>特別專案備註</label>
+      <textarea id="note" placeholder="例如：海寧那筆改算 3,500；或某客戶整檔 1,000 元包場"></textarea>
+      <div class="hint">這裡寫的會覆蓋預設費率，適合手動調整的特殊情況</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>第三步 · 選擇要產出什麼</h2>
+    <div class="btn-row">
+      <button class="btn-detail" id="btnDetail">📋 只產生明細表</button>
+      <button class="btn-revenue" id="btnRevenue">💰 只結算營收</button>
+    </div>
+    <div id="status"></div>
+    <div id="errBox"></div>
+  </div>
+
+  <div class="card" id="result">
+    <div class="result-head">
+      <h2 id="resultTitle">明細表</h2>
+      <button class="copy-btn" id="copyBtn">複製文字</button>
+    </div>
+    <div id="resultBody"></div>
+  </div>
+
+  <details class="rules">
+    <summary>查看計費規則</summary>
+    <div class="body">
+      費率：1–3 小時每小時 400；4–9 小時每小時 350；10 小時以上每小時 300。<br>
+      不計費：紅點場勘、綠點房東使用、含「綠豆」或「Doris」的項目。<br>
+      場勘預設半小時。保全開＝早於 10:00 開始；保全關＝晚於 19:00 結束；兩者皆是為保全開關。
+    </div>
+  </details>
+</div>
+
+<script>
+// ---------- 計費邏輯（前端寫死，不交給 AI 算錢）----------
+function rate(h) { if (h >= 10) return 300; if (h >= 4) return 350; return 400; }
+function fee(h) { return rate(h) * h; }
+function nt(n) { return n.toLocaleString('en-US'); }
+
+// 由「開始時間 + 時數」算結束，回傳 HH:MM
+function addHours(start, hours) {
+  const [h, m] = start.split(':').map(Number);
+  const total = h * 60 + m + Math.round(hours * 60);
+  const hh = Math.floor(total / 60) % 24;
+  const mm = total % 60;
+  return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+}
+// 時間字串 -> 分鐘
+function toMin(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+
+// 依規則補上保全標註（純前端判定，字面規則）
+function secureTag(startMin, endMin) {
+  const open = startMin < 600;   // 早於 10:00
+  const close = endMin > 1140;   // 晚於 19:00
+  if (open && close) return '保全開關';
+  if (open) return '保全開';
+  if (close) return '保全關';
+  return '';
+}
+
+let imageData = null, imageMime = null;
+
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const preview = document.getElementById('preview');
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  if (file.size > 5 * 1024 * 1024) { showErr('圖片超過 5MB，請壓縮後再上傳'); return; }
+  clearErr();
+  imageMime = file.type;
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageData = e.target.result.split(',')[1];
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function showErr(msg) { document.getElementById('errBox').innerHTML = '<div class="err">' + msg + '</div>'; }
+function clearErr() { document.getElementById('errBox').innerHTML = ''; }
+function setStatus(msg, busy) {
+  const s = document.getElementById('status');
+  s.style.display = 'block';
+  s.innerHTML = (busy ? '<span class="spinner"></span>' : '') + msg;
+}
+function hideStatus() { document.getElementById('status').style.display = 'none'; }
+
+document.getElementById('btnDetail').addEventListener('click', () => run('detail'));
+document.getElementById('btnRevenue').addEventListener('click', () => run('revenue'));
+
+async function run(mode) {
+  if (!imageData) { showErr('請先上傳一張行事曆截圖'); return; }
+  clearErr();
+  document.getElementById('result').style.display = 'none';
+  document.querySelectorAll('button').forEach(b => b.disabled = true);
+  setStatus('正在讀取行事曆內容…', true);
+
+  try {
+    const records = await readCalendar();
+    setStatus('整理計算中…', true);
+    const computed = compute(records);
+    render(mode, computed);
+    hideStatus();
+  } catch (err) {
+    hideStatus();
+    showErr('讀取失敗：' + err.message + '。可重新上傳更清晰的截圖再試一次。');
+  } finally {
+    document.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+}
+
+// ---------- 呼叫 Claude API 只做「讀圖」，輸出結構化資料 ----------
+async function readCalendar() {
+  const month = document.getElementById('month').value;
+  const note = document.getElementById('note').value.trim();
+
+  const prompt = `你是行事曆判讀助手。請讀取這張 TimeTree 行事曆截圖，把每一筆行程抽取成結構化 JSON。
+
+${month ? '結算月份參考：' + month + '。' : ''}
+
+每筆行程要判斷：
+- date：日期，格式 "M/D"（例如 "6/3"）
+- start：開始時間 "HH:MM"（24小時制）。場勘若只有一個時間點，start 就是那個時間。
+- hours：租借時數。從項目名稱的「NH」抽取數字（例如 "4H" 就是 4）。場勘沒有時數，hours 設為 null。
+- name：客戶或項目名稱（去掉時數標記與保全標記，保留主要識別文字）
+- type：分類，三選一：
+  - "survey"：場勘（紅色點點，或名稱含「場勘」）
+  - "owner"：房東使用（綠色點點，或名稱含「綠豆」或「Doris」）
+  - "rent"：一般客戶租借（藍色點點）
+
+判讀重點：
+- 顏色點點是分類關鍵。紅點=survey、綠點=owner、藍點=rent。
+- 名稱含「綠豆」或「Doris」一律歸 owner，不論點點顏色。
+- 名稱含「場勘」一律歸 survey。
+- 保全標記（保全開/關/開關）不用抽取，系統會自己依時間判定，但保全標記不影響你判讀 hours。
+
+只回傳 JSON 陣列，不要任何說明文字、不要 markdown 標記。格式範例：
+[{"date":"6/3","start":"12:30","hours":4,"name":"唐米","type":"rent"},{"date":"6/3","start":"17:00","hours":null,"name":"粉紅湯圓","type":"survey"}]`;
+
+  // 呼叫自己的後端（金鑰安全地存在 Cloudflare 後台，不在這個網頁裡）
+  const resp = await fetch("/api/read", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageData, imageMime, prompt })
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || ("服務異常 " + resp.status));
+  let text = (data.text || '').trim();
+  text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  const start = text.indexOf('[');
+  const end = text.lastIndexOf(']');
+  if (start === -1 || end === -1) throw new Error("無法解析行事曆內容");
+  return JSON.parse(text.slice(start, end + 1));
+}
+
+// ---------- 用驗證過的邏輯計算 ----------
+function compute(records) {
+  const days = {};
+  for (const r of records) {
+    if (!days[r.date]) days[r.date] = [];
+    let endMin = null, endStr = null, secure = '', amount = 0, billable = false;
+
+    if (r.type === 'survey') {
+      // 場勘預設半小時
+      if (r.start) { endStr = addHours(r.start, 0.5); }
+      billable = false;
+    } else if (r.type === 'owner') {
+      if (r.start && r.hours) endStr = addHours(r.start, r.hours);
+      billable = false;
+    } else {
+      // rent
+      if (r.start && r.hours) {
+        endStr = addHours(r.start, r.hours);
+        amount = fee(r.hours);
+        billable = true;
+        secure = secureTag(toMin(r.start), toMin(endStr));
+      }
+    }
+    days[r.date].push({
+      start: r.start, end: endStr, name: r.name, hours: r.hours,
+      type: r.type, secure, amount, billable
+    });
+  }
+  // 排序日期
+  const ordered = Object.keys(days).sort((a, b) => {
+    const [am, ad] = a.split('/').map(Number);
+    const [bm, bd] = b.split('/').map(Number);
+    return am - bm || ad - bd;
+  });
+  let total = 0;
+  for (const d of ordered) for (const it of days[d]) total += it.amount;
+  return { days, ordered, total };
+}
+
+// ---------- 顯示 ----------
+function render(mode, c) {
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('resultTitle').textContent = mode === 'detail' ? '租借明細表' : '營收結算';
+  const body = document.getElementById('resultBody');
+
+  if (mode === 'revenue') {
+    // 只結算營收：列出計費項目 + 總計
+    let html = '';
+    for (const d of c.ordered) {
+      const billItems = c.days[d].filter(i => i.billable);
+      if (!billItems.length) continue;
+      html += '<div class="day"><div class="day-date">' + d + '</div>';
+      for (const it of billItems) {
+        html += '<div class="row"><span class="l">' + it.name +
+          ' <span style="color:var(--ink-soft);font-size:13px">' + it.hours + 'H</span></span>' +
+          '<span class="r">' + nt(it.amount) + '</span></div>';
+      }
+      html += '</div>';
+    }
+    html += '<div class="total-bar"><span class="lbl">本月營收合計</span><span class="amt">' + nt(c.total) + ' <small>元</small></span></div>';
+    body.innerHTML = html;
+  } else {
+    // 明細表：所有項目，含不計費
+    let html = '';
+    for (const d of c.ordered) {
+      html += '<div class="day"><div class="day-date">' + d + '</div>';
+      for (const it of c.days[d]) {
+        const timeStr = it.start ? (it.start + (it.end ? '–' + it.end : '')) : '';
+        const sec = it.secure ? '<span class="secure">' + it.secure + '</span>' : '';
+        const right = it.billable
+          ? '<span class="r">' + nt(it.amount) + '</span>'
+          : '<span class="r free">不計費</span>';
+        html += '<div class="row"><span class="l"><span class="time">' + timeStr + '</span>' +
+          it.name + sec + '</span>' + right + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '<div class="total-bar"><span class="lbl">本月營收合計</span><span class="amt">' + nt(c.total) + ' <small>元</small></span></div>';
+    body.innerHTML = html;
+  }
+}
+
+// ---------- 複製 ----------
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const txt = document.getElementById('resultBody').innerText;
+  navigator.clipboard.writeText(txt).then(() => {
+    const b = document.getElementById('copyBtn');
+    const o = b.textContent; b.textContent = '已複製 ✓';
+    setTimeout(() => b.textContent = o, 1500);
+  });
+});
+</script>
+</body>
+</html>
