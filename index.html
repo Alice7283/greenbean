@@ -428,15 +428,12 @@ function render(mode, c) {
           const hrs = it.hours ? it.hours + 'H-' : '';
           label = sec + hrs + it.name;
         }
-        const right = it.billable
-          ? '<span class="r">' + nt(it.amount) + '</span>'
-          : '<span class="r free">不計費</span>';
+        // 明細表不顯示金額，只列時間與名稱
         html += '<div class="row"><span class="l"><span class="time">' + timeStr + '</span>' +
-          label + '</span>' + right + '</div>';
+          label + '</span></div>';
       }
       html += '</div>';
     }
-    html += '<div class="total-bar"><span class="lbl">營收合計</span><span class="amt">' + nt(c.total) + ' <small>元</small></span></div>';
     body.innerHTML = html;
   }
 }
